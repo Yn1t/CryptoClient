@@ -1,5 +1,6 @@
 ﻿using System;
 using System.CodeDom.Compiler;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -20,12 +21,16 @@ namespace Crypto
         private string host = string.Empty;
         private int port = 0;
         private byte[] sessionKey;
+        private bool connectionStatus = false;
 
         public FileEncryptor encryptor = new FileEncryptor();
         public FileDecryptor decryptor = new FileDecryptor();
 
         public void connect(string host, int port)
         {
+            if (connectionStatus)
+                return;
+
             if (client == null)
                 client = new TcpClient();
 
@@ -45,6 +50,8 @@ namespace Crypto
                     Console.WriteLine(e.Message);
                 }
             }
+
+            connectionStatus = true;
 
             if (!client.Connected)
                 return;
@@ -86,9 +93,13 @@ namespace Crypto
                 binaryWriter.Write(encryptedKey.ToByteArray());
             }
 
+            var str_ = binaryReader.ReadString();
+
             binaryWriter.Flush();
 
             sessionKey = bytes;
+
+            connectionStatus = false;
         }
 
         public bool reconnect()
@@ -120,6 +131,11 @@ namespace Crypto
 
         public bool sendFile(string filePath)
         {
+            if (encryptor.process != 0 && encryptor.process != 100) 
+            {
+                return false;
+            }
+
             if (client.Connected)
             {
                 FileInfo fileInfo = new FileInfo(filePath);
@@ -169,6 +185,9 @@ namespace Crypto
 
         public bool getFile(string fileName)
         {
+            if (fileName == null)
+                return false;
+
             if (client != null && client.Connected)
             {
                 var stream = client.GetStream();
